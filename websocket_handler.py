@@ -129,7 +129,7 @@ define('host', default='127.0.0.1', help='Ip address of host')
 
 def run():
     """
-    Method for managing starting server and setting necessary configuration options.
+    Function for managing starting server and setting necessary configuration options.
     """
     tornado.options.parse_command_line()
     app.listen(options.port, address=options.host)
