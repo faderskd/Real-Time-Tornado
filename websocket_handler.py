@@ -1,7 +1,9 @@
+import datetime
 import logging
 from urllib.parse import urlparse
 
 import redis
+import tornado.gen
 import tornado.web
 import tornado.ioloop
 import tornado.websocket
@@ -10,6 +12,7 @@ from tornado.options import define, options
 import handler_settings
 
 logger = logging.getLogger(__name__)
+LISTENERS = []
 
 
 class CommunicationHandler(tornado.websocket.WebSocketHandler):
@@ -42,6 +45,8 @@ class CommunicationHandler(tornado.websocket.WebSocketHandler):
         """
         Called when client (e.g. js client) initiate connection. Performs authentication if any authentication handler
         given during initialization.
+
+        :param channel: redis subscription channel given in ws url
         """
         self._channel = channel
 
@@ -54,22 +59,39 @@ class CommunicationHandler(tornado.websocket.WebSocketHandler):
                 return
             self._user = user
 
-        self._pubsub.subscribe({channel: self.subscribe_handler})
-
         msg = "Connection estabilished"
         if self._user:
             msg = "Connection estabilished for user: " % self._user
         logger.info(msg)
 
+        tornado.ioloop.IOLoop.current().spawn_callback(self.listen)
+
+    @tornado.gen.coroutine
+    def listen(self):
+        self._pubsub.subscribe(self._channel)
+        while True:
+            message = self._pubsub.get_message()
+            if message:
+                self.subscribe_handler(message)
+            yield tornado.gen.Task(
+                tornado.ioloop.IOLoop.current().add_timeout,
+                datetime.timedelta(milliseconds=100)
+            )
+
     def subscribe_handler(self, message):
         """
         Called when new message is going from redis (somebody write new message on socket).
+
+        :param message: Redis message object
         """
+        print("handler", id(self))
         self.write_message(message['data'])
 
     def on_message(self, message):
         """
         Called when handler receives new message from client.
+
+        :param message: String representing message to be published by redis
         """
         self._redis_connection.publish(self._channel, message)
 
@@ -86,6 +108,8 @@ class CommunicationHandler(tornado.websocket.WebSocketHandler):
     def check_origin(self, origin):
         """
         Checks if request was made from known domains.
+
+        :param origin: Url of server from which request ws request was made
         """
         domain = urlparse(origin).hostname
         domain_allowed = domain in self._domains
