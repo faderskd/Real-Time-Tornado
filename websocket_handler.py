@@ -12,7 +12,6 @@ from tornado.options import define, options
 import handler_settings
 
 logger = logging.getLogger(__name__)
-LISTENERS = []
 
 
 class CommunicationHandler(tornado.websocket.WebSocketHandler):
@@ -34,6 +33,7 @@ class CommunicationHandler(tornado.websocket.WebSocketHandler):
         self._redis_connection = self._get_redis_connection()
         self._pubsub = self._redis_connection.pubsub(ignore_subscribe_messages=True)
         self._user = None
+        self._subscribe = False
 
     def _get_redis_connection(self):
         host = handler_settings.REDIS_HOST if hasattr(handler_settings, 'REDIS_HOST') else 'localhost'
@@ -43,7 +43,7 @@ class CommunicationHandler(tornado.websocket.WebSocketHandler):
 
     def open(self, channel):
         """
-        Called when client (e.g. js client) initiate connection. Performs authentication if any authentication handler
+        Called when client initiate connection. Performs authentication if any authentication handler is
         given during initialization.
 
         :param channel: redis subscription channel given in ws url
@@ -68,8 +68,12 @@ class CommunicationHandler(tornado.websocket.WebSocketHandler):
 
     @tornado.gen.coroutine
     def listen(self):
+        """
+        Coroutine to listen on new messages from redis. Whenever message is received, it call subscribe handler.
+        """
         self._pubsub.subscribe(self._channel)
-        while True:
+        self._subscribe = True
+        while self._subscribe:
             message = self._pubsub.get_message()
             if message:
                 self.subscribe_handler(message)
@@ -84,7 +88,6 @@ class CommunicationHandler(tornado.websocket.WebSocketHandler):
 
         :param message: Redis message object
         """
-        print("handler", id(self))
         self.write_message(message['data'])
 
     def on_message(self, message):
@@ -99,6 +102,8 @@ class CommunicationHandler(tornado.websocket.WebSocketHandler):
         """
         Called when client disconnects from socket.
         """
+        self._subscribe = False
+        self._pubsub.unsubscribe()
         self._pubsub.close()
         msg = "Connection closed"
         if self._user:
