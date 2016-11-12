@@ -91,7 +91,7 @@ class CommunicationHandler(tornado.websocket.WebSocketHandler):
         self.write_message(message['data'])
 
     def on_message(self, message):
-        """
+        """tornao hanl
         Called when handler receives new message from client.
 
         :param message: String representing message to be published by redis
@@ -123,23 +123,22 @@ class CommunicationHandler(tornado.websocket.WebSocketHandler):
         return domain_allowed
 
 
-app = tornado.web.Application([
-    (r"/handler/([0-9]+)", CommunicationHandler),
-])
-
-
 define('port', default='8888', help='Tcp port')
 define('host', default='127.0.0.1', help='Ip address of host')
 
 
-def run():
+def run(authentication_handler=None, allowed_domains=None):
     """
     Function for managing starting server and setting necessary configuration options.
     """
+    app = tornado.web.Application([
+        (r"/handler/([0-9]+)", CommunicationHandler, dict(authentication_handler=authentication_handler,
+                                                          domains=allowed_domains)),
+    ])
     tornado.options.parse_command_line()
     app.listen(options.port, address=options.host)
     tornado.ioloop.IOLoop.instance().start()
 
 
-# if __name__ == '__main__':
-run()
+if __name__ == '__main__':
+    run()
