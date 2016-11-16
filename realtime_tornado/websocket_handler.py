@@ -1,3 +1,5 @@
+import os
+import json
 import datetime
 import logging
 from urllib.parse import urlparse
@@ -8,8 +10,6 @@ import tornado.web
 import tornado.ioloop
 import tornado.websocket
 from tornado.options import define, options
-
-import handler_settings
 
 logger = logging.getLogger(__name__)
 
@@ -36,9 +36,9 @@ class CommunicationHandler(tornado.websocket.WebSocketHandler):
         self._subscribe = False
 
     def _get_redis_connection(self):
-        host = handler_settings.REDIS_HOST if hasattr(handler_settings, 'REDIS_HOST') else 'localhost'
-        port = handler_settings.REDIS_PORT if hasattr(handler_settings, 'REDIS_PORT') else 6379
-        db = handler_settings.REDIS_DB if hasattr(handler_settings, 'REDIS_DB') else 0
+        host = os.getenv('REDIS_HOST', 'localhost')
+        port = int(os.getenv('REDIS_PORT', '6379'))
+        db = int(os.getenv('REDIS_DB', '0'))
         return redis.StrictRedis(host, port, db)
 
     def open(self, channel):
@@ -82,21 +82,25 @@ class CommunicationHandler(tornado.websocket.WebSocketHandler):
                 datetime.timedelta(milliseconds=100)
             )
 
-    def subscribe_handler(self, message):
+    def subscribe_handler(self, redis_message):
         """
         Called when new message is going from redis (somebody write new message on socket).
 
-        :param message: Redis message object
+        :param redis_message: Redis message object
         """
-        self.write_message(message['data'])
+        json_msg = redis_message['data'].decode()
+        data = json.loads(json_msg)
+        if id(self) != data['id']:
+            self.write_message(data['message'])
 
     def on_message(self, message):
-        """tornao hanl
+        """
         Called when handler receives new message from client.
 
         :param message: String representing message to be published by redis
         """
-        self._redis_connection.publish(self._channel, message)
+        json_msg = json.dumps({'id': id(self), 'message': message})
+        self._redis_connection.publish(self._channel, json_msg)
 
     def on_close(self):
         """
