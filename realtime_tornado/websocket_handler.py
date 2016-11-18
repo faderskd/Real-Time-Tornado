@@ -56,12 +56,13 @@ class CommunicationHandler(tornado.websocket.WebSocketHandler):
             if not user:
                 logger.error("Authentication failed")
                 self.close()
+                self.on_close()
                 return
             self._user = user
 
         msg = "Connection estabilished"
         if self._user:
-            msg = "Connection estabilished for user: " % self._user
+            msg = "Connection estabilished for user: %s" % self._user
         logger.info(msg)
 
         tornado.ioloop.IOLoop.current().spawn_callback(self.listen)
