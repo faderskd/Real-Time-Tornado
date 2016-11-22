@@ -18,18 +18,23 @@ class CommunicationHandler(tornado.websocket.WebSocketHandler):
     """
     Handler class for websocket communication.
     """
-    def initialize(self, authentication_handler=None, domains=None):
+    def initialize(self, authentication_handler=None, domains=None, additional_subscribe_handler=None):
         """
         Performs handler initialization. Params will be given when instantiating handler during urls defining.
 
-        :param authentication_handler: should be callable which gets cookie as a parameter and
+        :param authentication_handler: should be coroutine which gets cookie as a parameter and
         returns username or None respectively to success/failure.
 
         :param domains: array of allowed domains (origins)
+
+        :param additional_subscribe_handler: function that takes message as parameter to peform additional operations
+        when it appears on channel
         """
         logger.info("Initializing %s" % self.__class__.__name__)
         self._authentication_handler = authentication_handler
         self._domains = domains if domains else ['localhost']
+        self._additional_subscribe_handler = additional_subscribe_handler
+
         self._redis_connection = self._get_redis_connection()
         self._pubsub = self._redis_connection.pubsub(ignore_subscribe_messages=True)
         self._user = None
@@ -41,6 +46,7 @@ class CommunicationHandler(tornado.websocket.WebSocketHandler):
         db = int(os.getenv('REDIS_DB', '0'))
         return redis.StrictRedis(host, port, db)
 
+    @tornado.gen.coroutine
     def open(self, channel):
         """
         Called when client initiate connection. Performs authentication if any authentication handler is
@@ -52,7 +58,7 @@ class CommunicationHandler(tornado.websocket.WebSocketHandler):
 
         logger.info("Opening new connection")
         if self._authentication_handler:
-            user = self._authentication_handler(self.cookies)
+            user = yield self._authentication_handler(self.cookies)
             if not user:
                 logger.error("Authentication failed")
                 self.close()
@@ -70,29 +76,31 @@ class CommunicationHandler(tornado.websocket.WebSocketHandler):
     @tornado.gen.coroutine
     def listen(self):
         """
-        Coroutine to listen on new messages from redis. Whenever message is received, it call subscribe handler.
+        Coroutine for listening on new messages from redis. Whenever message is received, it calls subscribe handler.
         """
         self._pubsub.subscribe(self._channel)
         self._subscribe = True
         while self._subscribe:
-            message = self._pubsub.get_message()
-            if message:
-                self.subscribe_handler(message)
+            redis_message = self._pubsub.get_message()
+            if redis_message:
+                json_msg = redis_message['data'].decode()
+                data = json.loads(json_msg)
+                if id(self) != data['id']:
+                    self.subscribe_handler(data['message'])
             yield tornado.gen.Task(
                 tornado.ioloop.IOLoop.current().add_timeout,
                 datetime.timedelta(milliseconds=100)
             )
 
-    def subscribe_handler(self, redis_message):
+    def subscribe_handler(self, message):
         """
         Called when new message is going from redis (somebody write new message on socket).
 
         :param redis_message: Redis message object
         """
-        json_msg = redis_message['data'].decode()
-        data = json.loads(json_msg)
-        if id(self) != data['id']:
-            self.write_message(data['message'])
+        self.write_message(message)
+        if self._additional_subscribe_handler:
+            self._additional_subscribe_handler(message)
 
     def on_message(self, message):
         """
@@ -132,13 +140,14 @@ define('port', default='8888', help='Tcp port')
 define('host', default='127.0.0.1', help='Ip address of host')
 
 
-def run(authentication_handler=None, allowed_domains=None):
+def run(authentication_handler=None, allowed_domains=None, additional_subscribe_handler=None):
     """
     Function for managing starting server and setting necessary configuration options.
     """
     app = tornado.web.Application([
         (r"/handler/([0-9]+)", CommunicationHandler, dict(authentication_handler=authentication_handler,
-                                                          domains=allowed_domains)),
+                                                          domains=allowed_domains,
+                                                          additional_subscribe_handler=additional_subscribe_handler)),
     ])
     tornado.options.parse_command_line()
     app.listen(options.port, address=options.host)

@@ -4,6 +4,7 @@ import unittest
 import multiprocessing
 
 import websocket
+import tornado.gen
 
 from realtime_tornado import websocket_handler
 
@@ -42,9 +43,17 @@ class WebsocketHandlerNoAuthenticationTest(unittest.TestCase):
 class WebsocketHandlerWithAuthenticationTest(unittest.TestCase):
 
     def setUp(self):
-        self.authentication_handler_mock = lambda cookie: 'test_user'
+        @tornado.gen.coroutine
+        def success_authentication_coroutine_handler(cookie):
+            return "test user"
+
+        @tornado.gen.coroutine
+        def failure_authentication_coroutine_handler(cookie):
+            return None
+
+        self.authentication_handler_mock = success_authentication_coroutine_handler
         if self._testMethodName == 'test_subscribe_denied_connection':
-            self.authentication_handler_mock = lambda cookie: None
+            self.authentication_handler_mock = failure_authentication_coroutine_handler
 
         self.server_process = multiprocessing.Process(target=websocket_handler.run, args=(self.authentication_handler_mock,))
         self.server_process.start()
