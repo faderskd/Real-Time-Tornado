@@ -14,7 +14,7 @@ from tornado.options import define, options
 logger = logging.getLogger(__name__)
 
 
-class CommunicationHandler(tornado.websocket.WebSocketHandler):
+class WebsocketCommunicationHandler(tornado.websocket.WebSocketHandler):
     """
     Handler class for websocket communication.
     """
@@ -27,7 +27,7 @@ class CommunicationHandler(tornado.websocket.WebSocketHandler):
 
         :param domains: array of allowed domains (origins)
 
-        :param additional_subscribe_handler: function that takes message as parameter to peform additional operations
+        :param additional_subscribe_handler: function that takes message as parameter to perform additional operations
         when it appears on channel
         """
         logger.info("Initializing %s" % self.__class__.__name__)
@@ -140,21 +140,30 @@ define('port', default='8888', help='Tcp port')
 define('host', default='127.0.0.1', help='Ip address of host')
 
 
-def run(authentication_handler=None, allowed_domains=None, additional_subscribe_handler=None):
+def run(authentication_handler=None, allowed_domains=None, additional_subscribe_handler=None,
+        additional_routes=None):
     """
     Function for managing starting server and setting necessary configuration options.
 
-    :param authentication_handler: coroutine which takes cookie as parameter to check if user can connect to server
+    :param authentication_handler: should be coroutine which gets cookie as a parameter and
+    returns username or None respectively to success/failure
 
-    :param allowed_domains: domains from those request is allowed
+    :param domains: array of allowed domains (origins)
 
-    :param additional_subscribe_handler: handler for custom user actions performed after subscription to channel
+    :param additional_subscribe_handler: function that takes message as parameter to peform additional operations
+    when it appears on channel
+
+    :param additional_routes: array of user's custom Tornado routes
     """
+    if not additional_routes:
+        additional_routes = []
+
     app = tornado.web.Application([
-        (r"/handler/([0-9]+)", CommunicationHandler, dict(authentication_handler=authentication_handler,
+        (r"/handler/([0-9]+)", WebsocketCommunicationHandler, dict(authentication_handler=authentication_handler,
                                                           domains=allowed_domains,
                                                           additional_subscribe_handler=additional_subscribe_handler)),
-    ])
+    ] + additional_routes)
+
     tornado.options.parse_command_line()
     app.listen(options.port, address=options.host)
     tornado.ioloop.IOLoop.instance().start()
