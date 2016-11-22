@@ -143,6 +143,12 @@ define('host', default='127.0.0.1', help='Ip address of host')
 def run(authentication_handler=None, allowed_domains=None, additional_subscribe_handler=None):
     """
     Function for managing starting server and setting necessary configuration options.
+
+    :param authentication_handler: coroutine which takes cookie as parameter to check if user can connect to server
+
+    :param allowed_domains: domains from those request is allowed
+
+    :param additional_subscribe_handler: handler for custom user actions performed after subscription to channel
     """
     app = tornado.web.Application([
         (r"/handler/([0-9]+)", CommunicationHandler, dict(authentication_handler=authentication_handler,
