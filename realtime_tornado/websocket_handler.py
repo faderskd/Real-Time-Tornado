@@ -45,7 +45,7 @@ class WebsocketCommunicationHandler(tornado.websocket.WebSocketHandler):
         Called when client initiate connection. Performs authentication if any authentication handler is
         given during initialization.
 
-        :param channel: redis subscription channel given in ws url
+        :param channel: subscription channel given in ws url
         """
         self._channel = channel
 
