@@ -21,15 +21,8 @@ class WebsocketCommunicationHandler(tornado.websocket.WebSocketHandler):
     def initialize(self, authentication_handler=None, domains=None, additional_subscribe_handler=None):
         """
         Performs handler initialization. Params will be given when instantiating handler during urls defining.
-
-        :param authentication_handler: should be coroutine which gets cookie as a parameter and
-        returns username or None respectively to success/failure.
-
-        :param domains: array of allowed domains (origins)
-
-        :param additional_subscribe_handler: function that takes message as parameter to perform additional operations
-        when it appears on channel
         """
+
         logger.info("Initializing %s" % self.__class__.__name__)
         self._authentication_handler = authentication_handler
         self._domains = domains if domains else ['localhost']
