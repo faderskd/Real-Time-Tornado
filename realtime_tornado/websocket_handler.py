@@ -120,7 +120,7 @@ class WebsocketCommunicationHandler(tornado.websocket.WebSocketHandler):
         """
         Checks if request was made from known domains.
 
-        :param origin: Url of server from which request ws request was made
+        :param origin: Url of server from which ws request was made
         """
         domain = urlparse(origin).hostname
         domain_allowed = domain in self._domains
