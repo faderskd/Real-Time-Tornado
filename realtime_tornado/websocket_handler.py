@@ -152,7 +152,7 @@ def run(authentication_handler=None, allowed_domains=None, additional_subscribe_
         additional_routes = []
 
     app = tornado.web.Application([
-        (r"/handler/([0-9]+)", WebsocketCommunicationHandler, dict(authentication_handler=authentication_handler,
+        (r"/handler/(\w+)", WebsocketCommunicationHandler, dict(authentication_handler=authentication_handler,
                                                           domains=allowed_domains,
                                                           additional_subscribe_handler=additional_subscribe_handler)),
     ] + additional_routes)

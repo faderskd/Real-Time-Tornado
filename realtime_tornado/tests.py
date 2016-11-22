@@ -22,8 +22,8 @@ class WebsocketHandlerNoAuthenticationTest(unittest.TestCase):
         # wait for server to start
         time.sleep(0.01)
 
-        self.ws1 = websocket.create_connection('ws://localhost:8888/handler/1')
-        self.ws2 = websocket.create_connection('ws://localhost:8888/handler/1')
+        self.ws1 = websocket.create_connection('ws://localhost:8888/handler/chann1')
+        self.ws2 = websocket.create_connection('ws://localhost:8888/handler/chann1')
 
     def tearDown(self):
         self.ws1.close()
