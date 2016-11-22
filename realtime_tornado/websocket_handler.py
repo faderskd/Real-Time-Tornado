@@ -89,7 +89,7 @@ class WebsocketCommunicationHandler(tornado.websocket.WebSocketHandler):
         """
         Called when new message is going from redis (somebody write new message on socket).
 
-        :param subscribed message
+        :param message: subscribed message
         """
         self.write_message(message)
         if self._additional_subscribe_handler:
