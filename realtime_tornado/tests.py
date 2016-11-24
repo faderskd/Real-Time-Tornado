@@ -6,7 +6,7 @@ import multiprocessing
 import websocket
 import tornado.gen
 
-from realtime_tornado import websocket_handler
+import realtime_tornado
 
 os.environ['REDIS_HOST'] = 'localhost'
 os.environ['REDIS_PORT'] = '6379'
@@ -16,7 +16,8 @@ os.environ['REDIS_DB'] = '0'
 class WebsocketHandlerNoAuthenticationTest(unittest.TestCase):
 
     def setUp(self):
-        self.server_process = multiprocessing.Process(target=websocket_handler.run)
+        app = realtime_tornado.get_app_instance()
+        self.server_process = multiprocessing.Process(target=realtime_tornado.run, args=(app,))
         self.server_process.start()
 
         # wait for server to start
@@ -51,11 +52,12 @@ class WebsocketHandlerWithAuthenticationTest(unittest.TestCase):
         def failure_authentication_coroutine_handler(cookie):
             return None
 
-        self.authentication_handler_mock = success_authentication_coroutine_handler
+        authentication_handler_mock = success_authentication_coroutine_handler
         if self._testMethodName == 'test_subscribe_denied_connection':
-            self.authentication_handler_mock = failure_authentication_coroutine_handler
+            authentication_handler_mock = failure_authentication_coroutine_handler
 
-        self.server_process = multiprocessing.Process(target=websocket_handler.run, args=(self.authentication_handler_mock,))
+        app = realtime_tornado.get_app_instance(authentication_handler=authentication_handler_mock)
+        self.server_process = multiprocessing.Process(target=realtime_tornado.run, args=(app,))
         self.server_process.start()
 
         # wait for server to start

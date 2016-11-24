@@ -21,6 +21,17 @@ class WebsocketCommunicationHandler(tornado.websocket.WebSocketHandler):
     def initialize(self, authentication_handler=None, domains=None, additional_subscribe_handler=None):
         """
         Performs handler initialization. Params will be given when instantiating handler during urls defining.
+
+        Function for managing starting server and setting necessary configuration options.
+
+        :param authentication_handler: should be coroutine which gets cookie as a parameter and
+        returns username or None respectively to success/failure
+
+        :param domains: array of allowed domains (origins)
+
+        :param additional_subscribe_handler: function that takes message as parameter to perform additional operations
+        when it appears on channel
+
         """
 
         logger.info("Initializing %s" % self.__class__.__name__)
@@ -129,33 +140,24 @@ class WebsocketCommunicationHandler(tornado.websocket.WebSocketHandler):
         return domain_allowed
 
 
-define('port', default='8888', help='Tcp port')
-define('host', default='127.0.0.1', help='Ip address of host')
-
-
-def run(authentication_handler=None, allowed_domains=None, additional_subscribe_handler=None,
-        additional_routes=None):
-    """
-    Function for managing starting server and setting necessary configuration options.
-
-    :param authentication_handler: should be coroutine which gets cookie as a parameter and
-    returns username or None respectively to success/failure
-
-    :param domains: array of allowed domains (origins)
-
-    :param additional_subscribe_handler: function that takes message as parameter to peform additional operations
-    when it appears on channel
-
-    :param additional_routes: array of user's custom Tornado routes
-    """
-    if not additional_routes:
-        additional_routes = []
+def get_app_instance(authentication_handler=None, allowed_domains=None, additional_subscribe_handler=None):
 
     app = tornado.web.Application([
         (r"/handler/(\w+)", WebsocketCommunicationHandler, dict(authentication_handler=authentication_handler,
                                                           domains=allowed_domains,
                                                           additional_subscribe_handler=additional_subscribe_handler)),
-    ] + additional_routes)
+    ])
+
+    return app
+
+
+define('port', default='8888', help='Tcp port')
+define('host', default='127.0.0.1', help='Ip address of host')
+
+
+def run(app=None):
+    if not app:
+        app = get_app_instance()
 
     tornado.options.parse_command_line()
     app.listen(options.port, address=options.host)
