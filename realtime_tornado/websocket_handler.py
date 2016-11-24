@@ -22,8 +22,6 @@ class WebsocketCommunicationHandler(tornado.websocket.WebSocketHandler):
         """
         Performs handler initialization. Params will be given when instantiating handler during urls defining.
 
-        Function for managing starting server and setting necessary configuration options.
-
         :param authentication_handler: should be coroutine which gets cookie as a parameter and
         returns username or None respectively to success/failure
 
@@ -75,10 +73,10 @@ class WebsocketCommunicationHandler(tornado.websocket.WebSocketHandler):
             msg = "Connection estabilished for user: %s" % self._user
         logger.info(msg)
 
-        tornado.ioloop.IOLoop.current().spawn_callback(self.listen)
+        tornado.ioloop.IOLoop.current().spawn_callback(self._listen)
 
     @tornado.gen.coroutine
-    def listen(self):
+    def _listen(self):
         """
         Coroutine for listening on new messages from redis. Whenever message is received, it calls subscribe handler.
         """
@@ -156,6 +154,9 @@ define('host', default='127.0.0.1', help='Ip address of host')
 
 
 def run(app=None):
+    """
+    Function for managing starting server and setting necessary configuration options.
+    """
     if not app:
         app = get_app_instance()
 
